@@ -1,0 +1,16 @@
+-R theories/ LensLaws
+theories/Everything.v
+
+theories/Isomorphism.v
+theories/Functor.v
+
+theories/Crush.v
+
+theories/These.v
+
+theories/Lens.v
+theories/Prism.v
+theories/Affine.v
+theories/Grate.v
+theories/Achroma.v
+theories/Setter.v
