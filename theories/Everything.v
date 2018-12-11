@@ -17,3 +17,6 @@ Require Import LensLaws.Affine.
 Require Import LensLaws.Grate.
 Require Import LensLaws.Setter.
 Require Import LensLaws.Achroma.
+
+(* * Conditions for unsafe operations *)
+Require Import LensLaws.LensProduct.

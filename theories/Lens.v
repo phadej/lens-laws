@@ -115,4 +115,4 @@ Proof.
       extensionality b'. apply law3.
       apply sigma_eq with (eqp := Hsetset).
       apply proof_irrelevance.
-    + rewrite Hba. symmetry. apply law1. Qed.
+    + rewrite Hba. symmetry. apply law1. Defined.

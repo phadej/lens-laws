@@ -111,7 +111,8 @@ VFILES:=theories/Everything.v\
   theories/Affine.v\
   theories/Grate.v\
   theories/Achroma.v\
-  theories/Setter.v
+  theories/Setter.v\
+  theories/LensProduct.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
