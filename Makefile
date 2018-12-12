@@ -101,18 +101,18 @@ endif
 #                    #
 ######################
 
-VFILES:=theories/Everything.v\
-  theories/Isomorphism.v\
-  theories/Functor.v\
-  theories/Crush.v\
-  theories/These.v\
+VFILES:=theories/These.v\
+  theories/LensProduct.v\
   theories/Lens.v\
   theories/Prism.v\
   theories/Affine.v\
   theories/Grate.v\
   theories/Achroma.v\
   theories/Setter.v\
-  theories/LensProduct.v
+  theories/Isomorphism.v\
+  theories/Functor.v\
+  theories/Crush.v\
+  theories/Everything.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))

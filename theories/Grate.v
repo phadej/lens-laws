@@ -281,7 +281,7 @@ Proof.
   refine (fun (xb : X -> B) => grate (fun ab => xb ab)).
 
   set (FWD := fun (a : A) (x : X) => match x with exist _ ab _ => ab a end).
-  set (BWD := fun (xb : X -> B) => grate (fun ab => xb ab)).
+  set (BWD := grate).
 
   apply (MkIso FWD BWD); subst FWD; subst BWD; subst X.
 
@@ -315,3 +315,5 @@ Proof.
   - intros ib i. destruct i as [ab proof]. destruct proof as [proof | proof ].
     + subst ab. subst I1. simpl. reflexivity.
     + subst ab. subst I2. simpl. reflexivity. Qed.
+
+Eval compute in grate_P grate_V2.

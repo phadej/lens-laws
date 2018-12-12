@@ -110,6 +110,20 @@ Proof.
     inversion Haux'.
   - left. rewrite <- Heqz. trivial. Defined.
 
+(* We essentially prove that law variants are equivalent, given other laws *)
+Theorem achroma_pristine_alt {A B} (achroma : Achroma A B) (a : A) :
+  Dec (a = achroma_insert achroma (achroma_select achroma a)).
+Proof.
+  destruct (achroma_extra achroma a).
+  - left.
+    rewrite <- (achroma_law2 achroma) at 1. rewrite e.
+    reflexivity.
+  - right.
+    unfold not in *. intros H1. apply n.
+    rewrite H1.
+    extensionality b.
+    apply (achroma_law5 achroma). Qed.
+
 Module Completeness.
   Parameter A : Set.
   Parameter B : Set.

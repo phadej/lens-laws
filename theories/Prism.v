@@ -77,6 +77,18 @@ Proof.
   intros a b Hsome. destruct prism as [Y ab]. destruct ab as [ayb yba H H0].
   crush. Qed.
 
+Theorem prism_law3_variant {A B} (prism : Prism A B) :
+  forall a, prism_preview prism a = None -> (forall b, prism_review prism b <> a).
+Proof.
+  intros a Hnone. destruct prism as [Y ab]. destruct ab as [ayb yba H H0]. unfold not.
+  crush.
+  - rewrite (H a) in H1.
+    assert (Contra : ayb (yba (inr b)) = ayb (yba (inl y))).
+    rewrite H1. rewrite Heqayba. reflexivity.
+    repeat (rewrite <- H0 in Contra).
+    inversion Contra.
+  - inversion Hnone. Qed.
+
 Theorem prism_complete {A B : Set} (review : B -> A) (preview : A -> option B):
   (forall b, preview (review b) = Some b) ->
   (forall a b, preview a = Some b -> review b = a) ->
