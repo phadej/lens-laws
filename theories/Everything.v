@@ -21,3 +21,6 @@ Require Import LensLaws.Achroma.
 (* * Conditions for unsafe operations *)
 Require Import LensLaws.LensProduct.
 Require Import LensLaws.PrismSum.
+
+(* * Higher-order lens *)
+Require Import LensLaws.FunLens.
