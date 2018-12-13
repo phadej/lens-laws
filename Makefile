@@ -103,6 +103,7 @@ endif
 
 VFILES:=theories/These.v\
   theories/LensProduct.v\
+  theories/PrismSum.v\
   theories/Lens.v\
   theories/Prism.v\
   theories/Affine.v\

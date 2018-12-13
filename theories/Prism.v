@@ -138,4 +138,4 @@ Proof.
   - intro eb. simpl. destruct eb as [e | b]; simpl.
     + destruct e as [a Hnone].
       set (Lem2 := @lem2_None _ ({ a : A | None = preview a } + B) (preview a)            Hnone).             rewrite Lem2. reflexivity.
-    + set (Lem2 := @lem2_Some _ ({ a : A | None = preview a } + B) (preview (review b)) b (eq_sym (law1 b))). rewrite Lem2. reflexivity. Qed.
+    + set (Lem2 := @lem2_Some _ ({ a : A | None = preview a } + B) (preview (review b)) b (eq_sym (law1 b))). rewrite Lem2. reflexivity. Defined.
