@@ -145,3 +145,62 @@ Proof.
   destruct opt.
   - inversion proof.
   - inversion proof. f_equal. apply proof_irrelevance. Qed.
+
+(* dependent match of match (case of case) rewrite *)
+Lemma dependentMatchOfMatchSumSum {U V : Set}
+    (P : U + V -> Type)
+    (Q : Type)
+    (opt : U + V)
+    (Popt : P opt)
+    (A B : Set)
+    (rgt : forall (v : V), P (inr v) -> A + B)
+    (lft : forall (u : U), P (inl u) -> A + B)
+    (f : A -> Q)
+    (g : B -> Q)
+  : match (match opt as pa return (P pa -> A + B) with
+           | inr v => rgt v
+           | inl u => lft u
+           end Popt) with
+    | inl l => f l
+    | inr r => g r
+    end
+  = match opt as pa return (P pa -> Q) with
+    | inr v => fun proof => match rgt v proof with inl l => f l | inr r => g r end
+    | inl u => fun proof => match lft u proof with inl l => f l | inr r => g r end
+    end Popt.
+Proof.
+  destruct opt; reflexivity. Qed.
+
+Lemma lem2_inl {U V : Set}
+    (P : Type)
+    (uv : U + V)
+    (x : U)
+    (proof : inl x = uv)
+    (f : forall (u : U), inl u = uv -> P)
+    (g : forall (v : V), inr v = uv -> P)
+  : match uv as x0 return (x0 = uv -> P) with
+    | inl u => fun pf : inl u = uv => f u pf
+    | inr v => fun pf : inr v = uv => g v pf
+    end eq_refl
+  = f x proof.
+Proof.
+  destruct uv.
+  - inversion proof. subst. f_equal. apply proof_irrelevance.
+  - inversion proof. Qed.
+
+Lemma lem2_inr {U V : Set}
+    (P : Type)
+    (uv : U + V)
+    (x : V)
+    (proof : inr x = uv)
+    (f : forall (u : U), inl u = uv -> P)
+    (g : forall (v : V), inr v = uv -> P)
+  : match uv as x0 return (x0 = uv -> P) with
+    | inl u => fun pf : inl u = uv => f u pf
+    | inr v => fun pf : inr v = uv => g v pf
+    end eq_refl
+  = g x proof.
+Proof.
+  destruct uv.
+  - inversion proof.
+  - inversion proof. subst. f_equal. apply proof_irrelevance. Qed.

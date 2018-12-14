@@ -130,7 +130,11 @@ Proof.
   apply (MkIso FWD2 BWD2); subst E; subst FWD2; subst BWD2.
 
   - intro a. simpl.
-    rewrite (@dependentMatchOfMatch _ (fun o => o = preview a) A (preview a) eq_refl _ _ (fun b pf => inr b) (fun pf => inl (exist (fun a0 : A => None = preview a0) a pf))).
+    rewrite (@dependentMatchOfMatch _
+      (fun o => o = preview a) A (preview a) eq_refl
+      _ _
+      (fun b pf => inr b)
+      (fun pf => inl (exist (fun a0 : A => None = preview a0) a pf))).
     remember (preview a) as pa.
     destruct pa.
     + symmetry. apply law2. symmetry. apply Heqpa.
@@ -139,3 +143,54 @@ Proof.
     + destruct e as [a Hnone].
       set (Lem2 := @lem2_None _ ({ a : A | None = preview a } + B) (preview a)            Hnone).             rewrite Lem2. reflexivity.
     + set (Lem2 := @lem2_Some _ ({ a : A | None = preview a } + B) (preview (review b)) b (eq_sym (law1 b))). rewrite Lem2. reflexivity. Defined.
+
+Module CompletenessMatching.
+  Parameter A : Set.
+  Parameter B : Set.
+
+  Parameter review : B -> A.
+  Parameter matching : A -> A + B.
+
+  Parameter law1 : forall b, matching (review b) = inr b.
+  Parameter law2 : forall a b, matching a = inr b -> review b = a.
+  Parameter law3 : forall a a', matching a = inl a' -> a' = a.
+
+  Definition E : Set := { aa : prod A A | inl (snd aa) = matching (fst aa) }.
+
+  Definition FWD (a : A) : E + B :=
+    let pa := matching a in
+    let Heqpa := eq_refl : pa = matching a in
+    (match pa as pa0 return (pa0 = matching a -> E + B) with
+      | inl a' => fun proof => inl (exist _ (pair a a') proof)
+      | inr b  => fun _  => inr b
+      end) Heqpa.
+
+  Definition BWD (eb : E + B) : A :=
+    match eb with
+    | inl (exist _ aa _) => snd aa (* second, i.e. returned by maching *)
+    | inr b              => review b
+    end.
+
+  Theorem prism_complete : Prism A B.
+  Proof.
+    exists E.
+    apply (MkIso FWD BWD); unfold FWD; unfold BWD; unfold E.
+
+    - intro a. simpl.
+      rewrite (@dependentMatchOfMatchSumSum _ _
+        (fun (uv : A + B) => uv = matching a) A (matching a) eq_refl
+        _ _
+        (fun b pf => inr b)
+        (fun a' pf => inl (exist (fun aa : A * A => inl (snd aa) = matching (fst aa)) (a, a') pf))).
+      remember (matching a) as ab. destruct ab.
+      + symmetry in Heqab. apply law3 in Heqab. subst. trivial.
+      + symmetry. apply law2. symmetry. apply Heqab.
+
+    - intro eb. simpl. destruct eb as [e | b]; simpl.
+      + destruct e as [aa proof]. destruct aa as [a a']. simpl in *.
+        assert (H: a' = a). apply law3. symmetry. apply proof. subst a'.
+        set (Lem2 := @lem2_inl _ _ ({ aa : A * A | inl (snd aa) = matching (fst aa) } + B) (matching a) a proof).
+        rewrite Lem2. trivial.
+      + set (Lem2 := @lem2_inr _ _ ({ aa : A * A | inl (snd aa) = matching (fst aa) } + B) (matching (review b)) b (eq_sym (law1 b))).
+        rewrite Lem2. trivial. Defined.
+End CompletenessMatching.
