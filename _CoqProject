@@ -1,4 +1,7 @@
 -R theories/ LensLaws
+
+theories/Zip.v
+
 theories/These.v
 
 theories/LensProduct.v

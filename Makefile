@@ -101,7 +101,8 @@ endif
 #                    #
 ######################
 
-VFILES:=theories/These.v\
+VFILES:=theories/Zip.v\
+  theories/These.v\
   theories/LensProduct.v\
   theories/PrismSum.v\
   theories/Lens.v\
