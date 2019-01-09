@@ -20,3 +20,21 @@ Definition isoFrom {A B} (iso : Iso A B) (b : B) : A :=
   match iso with
   | MkIso _ g _ _ => g b
   end.
+
+Theorem isoToFrom {A B} (iso : Iso A B) : forall (b : B),
+    isoTo iso (isoFrom iso b) = b.
+Proof.
+  intros b.
+  destruct iso as [fwd bwd H H'].
+  unfold isoTo; unfold isoFrom.
+  auto.
+Qed.
+
+Theorem isoFromTo {A B} (iso : Iso A B) : forall (a : A),
+    isoFrom iso (isoTo iso a) = a.
+Proof.
+  intros a.
+  destruct iso as [fwd bwd H H'].
+  unfold isoTo; unfold isoFrom.
+  auto.
+Qed.
