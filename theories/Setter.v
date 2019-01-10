@@ -78,15 +78,44 @@ Proof.
     rewrite <- Xcomp0. reflexivity. Qed.
 
 Definition W (A B X : Set) : Set := (X -> B) -> A.
-Lemma Wfunctor {A B} : IsFunctor (W A B).
+Instance Wfunctor {A B} : IsFunctor (W A B) :=
+  { fmap := fun (X Y : Set) (xy : X -> Y) (wx : W A B X) =>
+              fun yb => wx (fun x => yb (xy x)) }.
 Proof.
-  (* assert (fmap : forall (X Y : Set), (X -> Y) -> W A B X -> W A B Y). *)
-  set (fmap := fun (X Y : Set) (xy : X -> Y) (wx : W A B X) => fun yb => wx (fun x => yb (xy x))).
-
-  apply (MkFunctor fmap); unfold fmap.
   - intros Z. unfold W in *.
     extensionality w. extensionality yb. f_equal.
   - intros X Y Z f g. reflexivity. Qed.
+
+Definition F {A B : Set} (over : (B -> B) -> (A -> A)) : Set -> Set :=
+  fun (X : Set) => { f : W A B X | exists (a : A) (bx : B -> X), f = fun xb => over (fun b => xb (bx b)) a }.
+
+Instance FunctorF {A B : Set} (over : (B -> B) -> (A -> A)) :
+  IsFunctor (F over) :=
+  {
+     fmap X Y xy wx := match wx with
+      | exist _ x e =>
+         exist
+          (fun f : W A B Y => exists (a : A) (bx : B -> Y),
+                              f = (fun yb : Y -> B => over (fun b : B => yb (bx b)) a))
+          (fun yb =>  x (fun x => yb (xy x)))
+          (match e with
+            | ex_intro _ a (ex_intro _ bx H) =>
+              ex_intro _ a (ex_intro _ (fun b => xy (bx b))
+                (match H in (_ = x') return
+                  (fun yb : Y -> B => x (fun x0 : X => yb (xy x0))) =
+                  (fun yb : Y -> B => x' (fun x0 : X => yb (xy x0)))
+                with
+                | eq_refl => eq_refl
+                end))
+            end)
+     end
+  }.
+Proof.
+  + intros Z. extensionality w. destruct w. f_equal.
+    apply proof_irrelevance.
+  + intros X Y Z f g. extensionality w. destruct w. f_equal.
+    apply proof_irrelevance.
+Qed.
 
 Theorem setter_complete {A B : Set} (over : (B -> B) -> (A -> A)) :
   (forall a, over (fun b => b) a = a) ->
@@ -95,63 +124,10 @@ Theorem setter_complete {A B : Set} (over : (B -> B) -> (A -> A)) :
 Proof.
   intros law1 law2.
 
-  set (F := fun (X : Set) => { f : W A B X | exists (a : A) (bx : B -> X), f = fun xb => over (fun b => xb (bx b)) a } ).
+  exists (F over).
+  apply (FunctorF over).
 
-  exists F.
-
-  assert (fmap1 : forall (X Y : Set) (xy : X -> Y) (wx : F X), F Y).
-  intros X Y xy wx. destruct wx.
-  exists (fun yb => x (fun x => yb (xy x))).
-  destruct e as [a H]. destruct H as [bx H].
-  unfold W in *.
-  exists a. rewrite H. exists (fun b => xy (bx b)). reflexivity.
-
-  assert (fmap2 : forall (X Y : Set) (xy : X -> Y) (wx : F X), F Y).
-  refine (fun (X Y : Set) (xy : X -> Y) (wx : F X) => match wx with
-  | exist _ x e =>
-    exist
-    (fun f : W A B Y => exists (a : A) (bx : B -> Y),
-                        f = (fun yb : Y -> B => over (fun b : B => yb (bx b)) a))
-    (fun yb =>  x (fun x => yb (xy x)))
-    (match e with
-    | ex_intro _ a (ex_intro _ bx H) =>
-      ex_intro _ a (ex_intro _ (fun b => xy (bx b))
-        (match H in (_ = x') return
-          (fun yb : Y -> B => x (fun x0 : X => yb (xy x0))) =
-          (fun yb : Y -> B => x' (fun x0 : X => yb (xy x0)))
-        with
-        | eq_refl => eq_refl
-        end))
-    end)
-  end).
-
-  clear fmap1; clear fmap2.
-
-   set (fmap := (fun (X Y : Set) (xy : X -> Y) (wx : F X) => match wx with
-  | exist _ x e =>
-    exist
-    (fun f : W A B Y => exists (a : A) (bx : B -> Y),
-                        f = (fun yb : Y -> B => over (fun b : B => yb (bx b)) a))
-    (fun yb =>  x (fun x => yb (xy x)))
-    (match e with
-    | ex_intro _ a (ex_intro _ bx H) =>
-      ex_intro _ a (ex_intro _ (fun b => xy (bx b))
-        (match H in (_ = x') return
-          (fun yb : Y -> B => x (fun x0 : X => yb (xy x0))) =
-          (fun yb : Y -> B => x' (fun x0 : X => yb (xy x0)))
-        with
-        | eq_refl => eq_refl
-        end))
-    end)
-  end)).
-
-  - apply (MkFunctor fmap); subst fmap; subst F; unfold W.
-    + intros Z. extensionality w. destruct w. f_equal.
-      apply proof_irrelevance.
-    + intros X Y Z f g. extensionality w. destruct w. f_equal.
-      apply proof_irrelevance.
-
-  - assert (FWD_test : A -> F B).
+  - assert (FWD_test : A -> F over B).
     refine (fun (a : A) => exist
         (fun f : W A B B => exists (a : A) (bx : B -> B),
                         f = (fun yb : B -> B => over (fun b : B => yb (bx b)) a))
@@ -159,8 +135,8 @@ Proof.
         (ex_intro _ a (ex_intro _ (fun b => b)
             eq_refl))).
 
-    assert (BWD_test : F B -> A).
-    refine (fun (w : F B) => match w with
+    assert (BWD_test : F over B -> A).
+    refine (fun (w : F over B) => match w with
     | exist _ wx _ => wx (fun (b : B) => b)
     end).
 
@@ -172,7 +148,7 @@ Proof.
         (ex_intro _ a (ex_intro _ (fun b => b)
             eq_refl)))
 
-      (fun (w : F B) => match w with
+      (fun (w : F over B) => match w with
         | exist _ wx _ => wx (fun (b : B) => b)
         end)).
 
