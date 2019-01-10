@@ -12,6 +12,7 @@ Require Import LensLaws.Functor.
 Module Zip.
 
 Parameter F : Set -> Set.
+Parameter FunctorF : IsFunctor F.
 
 (** Shape *)
 Parameter Sh : Set.
@@ -22,53 +23,49 @@ Parameter Ix : Sh -> Set.
 (** Container *)
 Definition C (A : Set) : Set := sigT (fun (s : Sh) => Ix s -> A).
 
+Instance FunctorC : IsFunctor C := {}.
+Proof.
+  (* fmap *)
+  - intros A B f ca.
+    destruct ca as [s u].
+    exists s.
+    exact (fun i => f (u i)).
+  (* fmap_id *)
+  - intros A.
+    extensionality cx.
+    destruct cx as [s u].
+    reflexivity.
+  (* fmap_compose *)
+  - intros A B C f g.
+    extensionality cx.
+    destruct cx as [s u].
+    reflexivity.
+Defined.
+
 (** Iso *)
 Parameter iso : forall (X : Set), Iso (F X) (C X).
+
+Parameter iso_natural : forall (A B : Set) (f : A -> B) (fa : F A),
+    fmap f (isoTo (iso A) fa) = isoTo (iso B) (fmap f fa).
 
 Definition fmapF {A B : Set} (f : A -> B) (x : F A) : F B.
 Proof.
   apply (isoFrom (iso B)).
   apply (isoTo (iso A)) in x.
-  destruct x as [s ia].
-  exists s. intros i.
-  apply f. apply ia. exact i. Defined.
-
-Theorem fmapF_id : forall (A : Set) (fx : F A),
-    @fmapF A A (fun x => x) fx = fx.
-Proof.
-  intros A fa.
-  unfold fmapF; unfold isoFrom; unfold isoTo.
-  destruct (iso A) as [f g Hfg Hgf].
-  unfold IsInverse in *.
-  rewrite (Hfg fa) at 2.
-  f_equal.
-  destruct (f fa).
-  f_equal.
-Qed.
-
-Theorem fmapF_compose : forall (A B C : Set) (f : A -> B) (g : B -> C) (fx : F A),
-    fmapF (fun x => g (f x)) fx = (fun fx => fmapF g (fmapF f fx)) fx.
-Proof.
-  intros A B C f g fa.
-  unfold fmapF.
-  rewrite (isoToFrom (iso B)).
-  f_equal.
-  destruct (iso A) as [fwdA bwdA HA HA'].
-  unfold isoTo.
-  destruct (fwdA fa). reflexivity.
-Qed.
-
-(** [F] is a functor. *)
-Theorem functorF : IsFunctor F.
-Proof.
-  apply (@MkFunctor F (@fmapF)).
-  - intros A.
-    extensionality x.
-    apply fmapF_id.
-  - intros A B C0 f g.
-    extensionality x.
-    apply fmapF_compose.
+  apply (fmap f).
+  exact x.
 Defined.
+
+Theorem fmapF_canonical {A B : Set} :
+  fmap = @fmapF A B.
+Proof.
+  extensionality f.
+  extensionality fx.
+  unfold fmapF.
+  apply isoMove.
+  symmetry.
+  apply iso_natural.
+Qed.
 
 (** Let us have some operation [zip]. *)
 Parameter zip : forall (A B : Set) (x : F A) (y : F B), F (A * B).
@@ -87,20 +84,20 @@ Definition dup {A : Set} : A -> A * A
   := fun x => (x, x).
 
 Parameter zipNaturality : forall (A B C D : Set) (x : F A) (y : F B) (f : A -> C) (g : B -> D),
-  zip (fmapF f x) (fmapF g y) =
-  fmapF (prod f g) (zip x y).
+  zip (fmap f x) (fmap g y) =
+  fmap (prod f g) (zip x y).
 
 Parameter zipAssociativity : forall (A B C : Set) (x : F A) (y : F B) (z : F C),
-    zip x (zip y z) = fmapF assoc (zip (zip x y) z).
+    zip x (zip y z) = fmap assoc (zip (zip x y) z).
 
 Parameter zipSymmetry : forall (A B : Set) (x : F A) (y : F B),
-    zip x y = fmapF swap (zip y x).
+    zip x y = fmap swap (zip y x).
 
 Parameter zipIdempotency : forall (A : Set) (x : F A),
-    zip x x = fmapF dup x.
+    zip x x = fmap dup x.
 
 Parameter zipUnit : forall (A : Set) (x : F A),
-    zip topF x = fmapF (fun x => ((), x)) x.
+    zip topF x = fmap (fun x => ((), x)) x.
 
 Definition mup (s : Sh) : F ().
 Proof.
@@ -124,9 +121,10 @@ Proof.
 Qed.
 
 Lemma fmap_down : forall {A B : Set} (f : A -> B) (fx : F A),
-    mdown (fmapF f fx) = mdown fx.
+    mdown (fmap f fx) = mdown fx.
 Proof.
   intros A B f fx.
+  rewrite fmapF_canonical.
   unfold mdown; unfold fmapF.
   rewrite (isoToFrom _).
   destruct (isoTo (iso A) fx).
@@ -134,13 +132,14 @@ Proof.
 Qed.
 
 Lemma downup : forall (A : Set) (fx : F A),
-    mup (mdown fx) = fmapF (fun _ => tt) fx.
+    mup (mdown fx) = fmap (fun _ => tt) fx.
 Proof.
   intros A fx.
+  rewrite fmapF_canonical.
   unfold mdown; unfold mup.
   unfold fmapF.
   f_equal.
-  destruct (isoTo (iso A) fx) as [s _].
+  destruct (isoTo (iso A) fx) as [s u].
   reflexivity.
 Qed.
 
@@ -160,7 +159,6 @@ Proof.
   intros s.
   unfold M.
 
-  (** we use assumption immediately *)
   rewrite (zipIdempotency (mup s)).
   rewrite fmap_down.
   rewrite updown.
@@ -173,11 +171,11 @@ Proof.
   
   rewrite ?downup.
 
-  rewrite <- (@fmapF_id (()%type) (mup s)) at 1.
-  rewrite <- (@fmapF_id (()%type) (mup u)) at 2.
+  rewrite <- (fmap_id' (mup s)) at 1.
+  rewrite <- (fmap_id' (mup u)) at 2.
   rewrite ?zipNaturality.
   rewrite zipAssociativity.
-  rewrite <- fmapF_compose.
+  rewrite <- (fmap_compose' _ _ _).
 
   rewrite ?fmap_down.
   reflexivity.
@@ -197,11 +195,10 @@ Proof.
   intros s.
   unfold M; unfold top.
   rewrite downup.
-  rewrite <- (@fmapF_id () (mup s)).
+  rewrite <- (fmap_id' (mup s)).
   rewrite zipNaturality.
   rewrite zipUnit.
-  rewrite fmap_down.
-  rewrite fmap_down.
+  rewrite ?fmap_down.
   rewrite updown.
   reflexivity.
 Qed.

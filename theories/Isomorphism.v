@@ -38,3 +38,12 @@ Proof.
   unfold isoTo; unfold isoFrom.
   auto.
 Qed.
+
+Lemma isoMove {A B : Set} {iso : Iso A B} : forall (x : A) (y : B),
+    isoTo iso x = y -> x = isoFrom iso y.
+Proof.
+  intros x y H.
+  rewrite <- H.
+  symmetry.
+  apply isoFromTo.
+Qed.
