@@ -45,9 +45,11 @@ Defined.
 (** Iso *)
 Parameter iso : forall (X : Set), Iso (F X) (C X).
 
+(* Require iso to be natural isomorphism *)
 Parameter iso_natural : forall (A B : Set) (f : A -> B) (fa : F A),
     fmap f (isoTo (iso A) fa) = isoTo (iso B) (fmap f fa).
 
+(* fmap on F defined via isomorphism *)
 Definition fmapF {A B : Set} (f : A -> B) (x : F A) : F B.
 Proof.
   apply (isoFrom (iso B)).
@@ -56,6 +58,7 @@ Proof.
   exact x.
 Defined.
 
+(* Actually fmap must be equal to fmapF *)
 Theorem fmapF_canonical {A B : Set} :
   fmap = @fmapF A B.
 Proof.
@@ -71,6 +74,7 @@ Qed.
 Parameter zip : forall (A B : Set) (x : F A) (y : F B), F (A * B).
 Parameter topF : F ().
 
+(* utility functions to define [zip] laws *)
 Definition prod {A B C D : Set} : (A -> C) -> (B -> D) -> A * B -> C * D
   := fun f g xy => let (x, y) := xy in (f x, g y).
 
@@ -83,6 +87,7 @@ Definition swap {A B : Set} : A * B -> B * A
 Definition dup {A : Set} : A -> A * A
   := fun x => (x, x).
 
+(* [zip] laws *)
 Parameter zipNaturality : forall (A B C D : Set) (x : F A) (y : F B) (f : A -> C) (g : B -> D),
   zip (fmap f x) (fmap g y) =
   fmap (prod f g) (zip x y).
@@ -99,6 +104,8 @@ Parameter zipIdempotency : forall (A : Set) (x : F A),
 Parameter zipUnit : forall (A : Set) (x : F A),
     zip topF x = fmap (fun x => ((), x)) x.
 
+
+(* Conversion between Sh and F *)
 Definition mup (s : Sh) : F ().
 Proof.
   apply (isoFrom (iso ())).
@@ -111,23 +118,13 @@ Proof.
   exact s.
 Defined.
 
+(* mup and mdown is "inverse" forgetting contained value in F. *)
 Lemma updown : forall (s : Sh),
     mdown (mup s) = s.
 Proof.
   intros s.
   unfold mdown; unfold mup.
   rewrite (isoToFrom _).
-  reflexivity.
-Qed.
-
-Lemma fmap_down : forall {A B : Set} (f : A -> B) (fx : F A),
-    mdown (fmap f fx) = mdown fx.
-Proof.
-  intros A B f fx.
-  rewrite fmapF_canonical.
-  unfold mdown; unfold fmapF.
-  rewrite (isoToFrom _).
-  destruct (isoTo (iso A) fx).
   reflexivity.
 Qed.
 
@@ -140,6 +137,18 @@ Proof.
   unfold fmapF.
   f_equal.
   destruct (isoTo (iso A) fx) as [s u].
+  reflexivity.
+Qed.
+
+(* mdown forgets contained values, so fmapping before mdown do nothing *)
+Lemma fmap_down : forall {A B : Set} (f : A -> B) (fx : F A),
+    mdown (fmap f fx) = mdown fx.
+Proof.
+  intros A B f fx.
+  rewrite fmapF_canonical.
+  unfold mdown; unfold fmapF.
+  rewrite (isoToFrom _).
+  destruct (isoTo (iso A) fx).
   reflexivity.
 Qed.
 
@@ -164,6 +173,7 @@ Proof.
   rewrite updown.
   reflexivity. Qed.
 
+(* Also, assiciativity, commutativity, unit law follows from [zip] laws. *)
 Lemma Associativity : forall (s t u : Sh), M s (M t u) = M (M s t) u.
 Proof.
   intros s t u.
