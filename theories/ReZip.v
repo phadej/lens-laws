@@ -69,7 +69,9 @@ Axiom join_to_union :
 Axiom top_index : forall (u : U), Ix top u = true.
 Axiom bottom_index : forall (u : U), Ix bottom u = false.
 
-(** Container *)
+(** Container
+    Note that Con A ~ sigT (fun s => { u:U | Ix s u = true } -> A).
+*)
 Definition Con (A : Set) : Set :=
   sigT (fun (s : Sh) => forall (u : U), Ix s u = true -> A).
 
@@ -164,7 +166,7 @@ Proof.
   discriminate.
 Defined.
 
-(* utility functions to define [zip] laws *)
+(* utility functions to define [zip] [align] laws *)
 Definition prod {A B C D : Set} : (A -> C) -> (B -> D) -> A * B -> C * D
   := fun f g xy => let (x, y) := xy in (f x, g y).
 
@@ -208,11 +210,19 @@ Definition swapT {A B : Set} : these A B -> these B A
 Definition dupT {A : Set} : A -> these A A
   := fun x => These x x.
 
-(* Direct equality was hard... *)
+Definition fstT {A B : Set} : these A B -> option A
+  := fun xy =>
+       match xy with
+       | This a => Some a
+       | That _ => None
+       | These a _ => Some a
+       end.
+
+(* Equivalence between Con *)
 Definition mkCon {A : Set} (s : Sh) (p : forall u, Ix s u = true -> A) : Con A
   := existT (fun s0 => forall u, Ix s0 u = true -> A) s p.
 
-Definition eqto {s t : Sh} (e : s = t) :
+Let eqto {s t : Sh} (e : s = t) :
   forall u, Ix s u = true -> Ix t u = true.
 Proof.
   intros u H.
@@ -220,15 +230,58 @@ Proof.
   exact H.
 Defined.
 
-Inductive semiEq {A : Set} : Con A -> Con A -> Prop :=
-  semiEq_intro : forall (s t : Sh)
-                        (p : forall u, Ix s u = true -> A)
-                        (q : forall u, Ix t u = true -> A),
-      forall (eqst : s = t),
+Inductive semieq {A : Set} : Con A -> Con A -> Prop :=
+  semiEq_intro :
+    forall (s t : Sh) (eqst : s = t),
+      forall (p : forall u, Ix s u = true -> A)
+             (q : forall u, Ix t u = true -> A),
         (forall (u:U) (H : Ix s u = true), p u H = q u (eqto eqst H)) ->
-        semiEq (mkCon p) (mkCon q).
+        semieq (mkCon p) (mkCon q).
 
-Notation "x === y" := (semiEq x y) (at level 100).
+Notation "x === y" := (semieq x y) (at level 100).
+
+Ltac semieq_with eqst :=
+  apply (@semiEq_intro _ _ _ eqst).
+
+(* semieq is Equivalence relation *)
+Theorem semieq_reflexivity :
+  forall (A : Set) (x : Con A),
+    x === x.
+Proof.
+  intros A [x p].
+  semieq_with (eq_refl : x = x).
+  intros u H.
+  f_equal.
+Qed.
+
+Theorem semieq_symmetry :
+  forall (A : Set) (x y : Con A),
+    (x === y) -> (y === x).
+Proof.
+  intros A x y H.
+  destruct H as [x y E p q H].
+  semieq_with (eq_sym E).
+  intros u B.
+  rewrite (proof_irrelevance _ B (eqto E (eqto (eq_sym E) B))) at 1.
+  symmetry.
+  apply H.
+Qed.
+
+Theorem semieq_transitivity :
+  forall (A : Set) (x y z : Con A),
+    (x === y) -> (y === z) -> (x === z).
+Proof.
+  intros A [x p] [y q] [z r] Hxy Hyz.
+  inversion Hxy as [x' y' Exy p' q' Hxy' [Tx Tp] [Ty Tq]].
+  inversion Hyz as [y'' z'' Eyz q'' r'' Hyz' [Ry Rq] [Rz Rr]].
+  dependent destruction Tp.
+  dependent destruction Rr.
+  semieq_with Eyz.
+  intros u H.
+  rewrite Hxy'.
+  rewrite <- Hyz'.
+  reflexivity.
+Qed.
 
 (* [zip] laws *)
 Theorem zipNaturality : forall (A B C D : Set) (x : Con A) (y : Con B) (f : A -> C) (g : B -> D),
@@ -254,7 +307,7 @@ Proof.
   unfold fmap, FunctorCon, zip.
   destruct x as [s p].
   assert (meet s s = s) as E by apply meet_idempotent.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct and_conj as [Hs Ht].
   rewrite (proof_irrelevance _ Hs (eqto E H)).
@@ -268,7 +321,7 @@ Proof.
   intros A B [x p] [y q].
   unfold fmap, FunctorCon, zip.
   assert (meet x y = meet y x) as E by apply meet_commutative.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct and_conj as [Hx1 Hy1].
   destruct and_conj as [Hy2 Hx2].
@@ -283,7 +336,7 @@ Proof.
   intros A B C [x p] [y q] [z r].
   unfold fmap, FunctorCon, zip.
   assert (meet x (meet y z) = meet (meet x y) z) as E  by apply meet_associative.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct and_conj as [Hx1 Hyz1].
   destruct and_conj as [Hy1 Hz1].
@@ -301,7 +354,7 @@ Proof.
   intros A a [x p].
   unfold fmap; unfold FunctorCon; unfold zip; unfold repeat.
   assert (meet top x = x) as E by apply meet_top.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct and_conj as [_ Hx].
   rewrite (proof_irrelevance _ Hx (eqto E H)).
@@ -309,6 +362,7 @@ Proof.
 Qed.
 
 
+(** [align] laws *)
 Theorem alignNaturality : forall (A B C D : Set) (x : Con A) (y : Con B) (f : A -> C) (g : B -> D),
   align (fmap f x) (fmap g y) =
   fmap (prodT f g) (align x y).
@@ -331,7 +385,7 @@ Proof.
   destruct x as [s p].
   unfold align; unfold FunctorCon; unfold zip.
   assert (join s s = s) as E by apply join_idempotent.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct or_disj as [[EE | EE] | EE]; destruct EE as [Es Et].
   - rewrite (proof_irrelevance _ Es (eqto E H)).
@@ -347,7 +401,7 @@ Proof.
   intros A B [x p] [y q].
   unfold fmap, FunctorCon, align.
   assert (join x y = join y x) as E by apply join_commutative.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct or_disj as [[EE | EE] | EE]; destruct EE as [Ex1 Ey1];
     destruct or_disj as [[EE | EE] | EE]; destruct EE as [Ey2 Ex2];
@@ -367,19 +421,17 @@ Proof.
   intros A B C [x p] [y q] [z r].
   unfold fmap, FunctorCon, align.
   assert (join x (join y z) = join (join x y) z) as E by apply join_associative.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct or_disj as [[EE | EE] | EE]; destruct EE as [E1 E2];
     destruct or_disj as [[EE | EE] | EE]; destruct EE as [E3 E4];
       try (destruct or_disj as [[EE | EE] | EE]; destruct EE as [E5 E6]);
         try (destruct or_disj as [[EE | EE] | EE]; destruct EE as [E7 E8]);
-          try congruence.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
+          try congruence;
+          try (unfold assocT; f_equal; f_equal; f_equal; apply proof_irrelevance).
   - rewrite join_to_union in E5.
     rewrite E1 in E5.
     discriminate E5.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
   - rewrite join_to_union in E5.
     rewrite E1 in E5.
     discriminate E5.
@@ -392,16 +444,12 @@ Proof.
   - rewrite join_to_union in E2.
     rewrite E6 in E2.
     discriminate E2.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
   - rewrite join_to_union in E3.
     rewrite E1 in E3.
     discriminate E3.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
   - rewrite join_to_union in E5.
     rewrite E3 in E5.
     destruct (Ix x u); discriminate E5.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
-  - unfold assocT. f_equal; f_equal; f_equal; apply proof_irrelevance.
 Qed.
 
 Theorem alignUnit : forall (A B : Set) (x : Con A),
@@ -410,7 +458,7 @@ Proof.
   intros A B [x p].
   unfold fmap, FunctorCon, align, nil.
   assert (join bottom x = x) as E by apply join_bottom.
-  apply (@semiEq_intro _ _ _ _ _ E).
+  semieq_with E.
   intros u H.
   destruct or_disj as [[EE | EE] | EE]; destruct EE as [Ebot Ex].
   - contradict Ebot.
@@ -421,6 +469,45 @@ Proof.
     discriminate.
   - rewrite (proof_irrelevance _ Ex (eqto E H)).
     reflexivity.
+Qed.
+
+(* [zip] and [align] together *)
+Theorem zip_align_Absorption : forall (A B : Set) (x : Con A) (y : Con B),
+    fmap fst (zip x (align x y)) === x.
+Proof.
+  intros A B [x p] [y q].
+  unfold fmap, FunctorCon, zip, align.
+  assert (meet x (join x y) = x) as E by apply meet_join_absorption.
+  semieq_with E.
+  intros u H.
+  destruct and_conj as [Ex Exy].
+  unfold fst.
+  f_equal.
+  apply proof_irrelevance.
+Qed.
+
+Theorem align_zip_Absorption : forall (A B : Set) (x : Con A) (y : Con B),
+    fmap fstT (align x (zip x y)) === fmap Some x.
+Proof.
+  intros A B [x p] [y q].
+  unfold fmap, FunctorCon, align, zip.
+  assert (join x (meet x y) = x) as E by apply join_meet_absorption.
+  semieq_with E.
+  intros u H.
+  destruct or_disj as [[E1 | E2] | E3].
+  - destruct E1 as [Ex Ey].
+    unfold fstT.
+    f_equal; f_equal.
+    apply proof_irrelevance.
+  - destruct E2 as [Ex Ey].
+    unfold fstT.
+    f_equal; f_equal.
+    apply proof_irrelevance.
+  - destruct E3 as [Ex Ey].
+    contradict Ey.
+    rewrite meet_to_intersection.
+    rewrite Ex.
+    discriminate.
 Qed.
 
 End ReZip.
