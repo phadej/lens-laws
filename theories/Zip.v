@@ -14,6 +14,7 @@ Module Zip.
 
 Parameter F : Set -> Set.
 Parameter FunctorF : IsFunctor F.
+Existing Instance FunctorF.
 
 (** Shape *)
 Parameter Sh : Set.

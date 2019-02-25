@@ -39,7 +39,7 @@ Instance IdentityFunctor : IsFunctor Identity :=
 Proof.
   unfold Identity; reflexivity.
   unfold Identity; reflexivity.
-Qed.
+Defined.
 
 Definition Snd : Set -> Set -> Set := prod.
 
@@ -52,9 +52,9 @@ Proof.
   - intros A B C f g.
     extensionality ka; destruct ka.
     reflexivity.
-Qed.
+Defined.
 
-Instance ComposeFunctor {F G : Set -> Set} (functorF : IsFunctor F) (functorG : IsFunctor G) : IsFunctor (fun X => F (G X)) :=
+Instance ComposeFunctor {F G : Set -> Set} `(functorF : IsFunctor F) `(functorG : IsFunctor G) : IsFunctor (fun X => F (G X)) :=
   { fmap A B := fun f fga => fmap (@fmap G functorG A B f) fga }.
 Proof.
   - intros A.
@@ -65,4 +65,41 @@ Proof.
     rewrite (fmap_compose f g).
     rewrite (fmap_compose (fmap f) (fmap g)).
     reflexivity.
-Qed.
+Defined.
+
+Instance ProductFunctor {F G : Set -> Set} `(functorF : IsFunctor F) `(functorG : IsFunctor G) : IsFunctor (fun X => prod (F X) (G X)) :=
+  { fmap A B := fun f fa_ga => match fa_ga with
+                               | (fa, ga) => (fmap f fa, fmap f ga)
+                               end;
+  }.
+Proof.
+  (* fmap_id *)
+  - intros A.
+    extensionality fa_ga.
+    destruct fa_ga as [fa ga].
+    rewrite ?fmap_id'.
+    reflexivity.
+  - intros A B C f g.
+    extensionality fa_ga.
+    destruct fa_ga as [fa ga].
+    rewrite <- fmap_compose'.
+    rewrite <- fmap_compose'.
+    reflexivity.
+Defined.
+
+Instance OptionFunctor : IsFunctor option :=
+  { fmap A B := fun f ma => match ma with
+                            | None => None
+                            | Some a => Some (f a)
+                            end
+  }.
+Proof.
+  (* fmap_id *)
+  - intros A.
+    extensionality ma.
+    destruct ma; reflexivity.
+  (* fmap_compose *)
+  - intros A B C f g.
+    extensionality ma.
+    destruct ma; reflexivity.
+Defined.

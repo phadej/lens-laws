@@ -1,6 +1,8 @@
 -R theories/ LensLaws
 
 theories/Zip.v
+theories/ReZip.v
+theories/LatticeLike.v
 
 theories/These.v
 
