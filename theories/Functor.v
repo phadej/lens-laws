@@ -7,29 +7,99 @@ Require Import Coq.Logic.ProofIrrelevance.
 Require Import Program.
 
 (* Functor *)
-Inductive IsFunctor (F : Set -> Set) : Type :=
-  MkFunctor :
-    forall (fmap : (forall {A B : Set}, (A -> B) -> F A -> F B)),
-    (forall (A : Set), fmap (fun (x : A) => x) = (fun fx => fx)) ->
-    (forall (A B C : Set) (f : A -> B) (g : B -> C), (fmap (fun a => g (f a)) = (fun fa => fmap g (fmap f fa)))) ->
-    IsFunctor F.
+Class IsFunctor (F : Set -> Set) :=
+  {
+    fmap : forall {A B : Set}, (A -> B) -> F A -> F B;
+    fmap_id : forall {A : Set}, @fmap A A (fun x => x) = (fun fx => fx);
+    fmap_compose : forall {A B C : Set} (f : A -> B) (g : B -> C),
+        fmap (fun a => g (f a)) = (fun fa => fmap g (fmap f fa));
+  }.
 
-Arguments MkFunctor {_} fmap fid fcompose : rename.
-
-Theorem IdentityFunctor : IsFunctor (fun A => A).
+Theorem fmap_id' {F : Set -> Set} {functor : IsFunctor F} {A : Set} :
+  forall (fx : F A), fmap (fun x => x) fx = fx.
 Proof.
-  apply (MkFunctor (fun _ _ ab a => ab a)); reflexivity. Defined.
+  intros fx.
+  rewrite fmap_id.
+  reflexivity.
+Qed.
 
-Theorem SndFunctor {A : Set} : IsFunctor (fun B => prod A B).
+Theorem fmap_compose' {F : Set -> Set} {functor : IsFunctor F} {A B C : Set} :
+  forall (f : A -> B) (g : B -> C) (fx : F A),
+    fmap (fun a => g (f a)) fx = fmap g (fmap f fx).
 Proof.
-  apply (MkFunctor (fun _ _ f xy => match xy with pair x y => pair x (f y) end)).
-  - intros Y. extensionality xy. destruct xy. trivial.
-  - intros U V W uv vw. extensionality xu. destruct xu. trivial. Defined.
+  intros f g fx.
+  rewrite fmap_compose.
+  reflexivity.
+Qed.
 
-Theorem ComposeFunctor {F G : Set -> Set} (functorF : IsFunctor F) (functorG : IsFunctor G) : IsFunctor (fun X => F (G X)).
+Definition Identity : Set -> Set := fun A => A.
+
+Instance IdentityFunctor : IsFunctor Identity :=
+  { fmap A B := fun f a => f a }.
 Proof.
-  destruct functorF as [Ffmap Fid Fcomp].
-  destruct functorG as [Gfmap Gid Gcomp].
-  apply (MkFunctor (fun _ _ f => Ffmap _ _ (Gfmap _ _ f))).
-  - intros A. rewrite Gid. rewrite Fid. trivial.
-  - intros A B C f g. rewrite Gcomp. rewrite Fcomp. trivial. Defined.
+  unfold Identity; reflexivity.
+  unfold Identity; reflexivity.
+Defined.
+
+Definition Snd : Set -> Set -> Set := prod.
+
+Instance SndFunctor {K : Set} : IsFunctor (Snd K) :=
+  { fmap A B := fun f ka => match ka with pair k a => pair k (f a) end }.
+Proof.
+  - intros A.
+    extensionality ka; destruct ka.
+    reflexivity.
+  - intros A B C f g.
+    extensionality ka; destruct ka.
+    reflexivity.
+Defined.
+
+Instance ComposeFunctor {F G : Set -> Set} `(functorF : IsFunctor F) `(functorG : IsFunctor G) : IsFunctor (fun X => F (G X)) :=
+  { fmap A B := fun f fga => fmap (@fmap G functorG A B f) fga }.
+Proof.
+  - intros A.
+    rewrite fmap_id.
+    rewrite fmap_id.
+    reflexivity.
+  - intros A B C f g.
+    rewrite (fmap_compose f g).
+    rewrite (fmap_compose (fmap f) (fmap g)).
+    reflexivity.
+Defined.
+
+Instance ProductFunctor {F G : Set -> Set} `(functorF : IsFunctor F) `(functorG : IsFunctor G) : IsFunctor (fun X => prod (F X) (G X)) :=
+  { fmap A B := fun f fa_ga => match fa_ga with
+                               | (fa, ga) => (fmap f fa, fmap f ga)
+                               end;
+  }.
+Proof.
+  (* fmap_id *)
+  - intros A.
+    extensionality fa_ga.
+    destruct fa_ga as [fa ga].
+    rewrite ?fmap_id'.
+    reflexivity.
+  - intros A B C f g.
+    extensionality fa_ga.
+    destruct fa_ga as [fa ga].
+    rewrite <- fmap_compose'.
+    rewrite <- fmap_compose'.
+    reflexivity.
+Defined.
+
+Instance OptionFunctor : IsFunctor option :=
+  { fmap A B := fun f ma => match ma with
+                            | None => None
+                            | Some a => Some (f a)
+                            end
+  }.
+Proof.
+  (* fmap_id *)
+  - intros A.
+    extensionality ma.
+    destruct ma; reflexivity.
+  (* fmap_compose *)
+  - intros A B C f g.
+    extensionality ma.
+    destruct ma; reflexivity.
+Defined.

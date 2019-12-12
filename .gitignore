@@ -2,5 +2,6 @@
 *.vo.aux
 *.glob
 *.v.d
+.*.aux
 Makefile.bak
 html
